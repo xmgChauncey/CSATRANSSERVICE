@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using System.Configuration;
 using System.Xml;
 
-namespace CSATRANSSERVICE
+namespace CSAReceiveAndSend
 {
     public class MsmqOperate
     {
@@ -19,7 +19,6 @@ namespace CSATRANSSERVICE
         public MessageQueue Queue { get => queue; set => queue = value; }
         public MessageQueueTransaction MqTransaction { get => mqTransaction; set => mqTransaction = value; }
 
-
         /// <summary>
         /// Method: ConnectMsmq
         /// Description: 通过msmq地址连接msmq
@@ -28,17 +27,9 @@ namespace CSATRANSSERVICE
         /// Parameter: msmqAddress msmq地址
         /// Returns: void
         ///</summary>
-        public bool ConnectMsmq(string msmqAddress,bool remote)
+        public bool ConnectMsmq(string msmqAddress)
         {
-            if(!remote)
-            {
-                if (MessageQueue.Exists(msmqAddress))
-                {
-                    Queue = new MessageQueue(msmqAddress);
-                    return true;
-                }
-            }
-            else
+            if (MessageQueue.Exists(msmqAddress))
             {
                 Queue = new MessageQueue(msmqAddress);
                 return true;
@@ -210,7 +201,7 @@ namespace CSATRANSSERVICE
         public bool ReceiveMsmq(string messageFormatter)
         {
             try
-            {
+            {               
                 Message = Queue.Receive();
                 switch (messageFormatter)
                 {
@@ -247,6 +238,18 @@ namespace CSATRANSSERVICE
                 MqTransaction.Begin();
                 Message = Queue.Receive();
                 MqTransaction.Commit();
+                switch (messageFormatter)
+                {
+                    case "Xml":
+                        Message.Formatter = new XmlMessageFormatter(new Type[] { typeof(string) });
+                        break;
+                    case "Binary":
+                        Message.Formatter = new BinaryMessageFormatter();
+                        break;
+                    case "ActiveX":
+                        Message.Formatter = new ActiveXMessageFormatter();
+                        break;
+                }
             }
             catch (System.Exception ex)
             {

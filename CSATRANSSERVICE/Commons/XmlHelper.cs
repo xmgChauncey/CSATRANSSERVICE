@@ -200,7 +200,6 @@ namespace CSATRANSSERVICE
             }
         }
 
-
         /// <summary>
         /// Method: RemoveAllXmlNamespace
         /// Description: 删除xml文件中的默认命名空间xmlns
@@ -219,11 +218,6 @@ namespace CSATRANSSERVICE
                 xmlData = xmlData.Replace(m.ToString(), "");
             }
             return xmlData;
-        }
-
-        public static void AddXmlNamespace(XElement xElement)
-        {
-
         }
     }
 }

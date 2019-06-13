@@ -1,21 +1,17 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.Configuration;
-using System.Data;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
+using System.Data.SqlClient;
 using System.Messaging;
 using System.ServiceProcess;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
+using System.Xml;
 
 namespace CSATRANSSERVICE
 {
     public partial class CsaService : ServiceBase
     {
+        int csa01FileNumber = 0;
+        int csa02FileNumber = 0;
         public CsaService()
         {
             InitializeComponent();
@@ -31,7 +27,6 @@ namespace CSATRANSSERVICE
             //todo something
             Thread thread = new Thread(new ThreadStart(OperateCsa02Message));
             thread.Start();
-
         }
 
         protected override void OnStop()
@@ -50,47 +45,98 @@ namespace CSATRANSSERVICE
         {
             while (true)
             {
-                //接收企业CSA01报文的msmq通道
-                string receiveCSA01MqAddress = ConfigurationManager.AppSettings["ReceiveCSA01MqAddress"].ToString();
-
-                //发送总署版CSA01报文的msmq通道
-                string sendCSA01MaAddress = ConfigurationManager.AppSettings["SendCSA01MqAddress"].ToString();
-
-                //测试使用
-                string filePath = ConfigurationManager.AppSettings["CSA01FilePath"].ToString();
-
-                //企业CSA01报文落地保存目录
-                string fileSavePath = ConfigurationManager.AppSettings["CSA01FileSavePath"].ToString();
-
-                //连接msmq
-                MsmqOperate msmqOperateReceiver = new MsmqOperate();
-                MsmqOperate msmqOperateSender = new MsmqOperate();
-                msmqOperateReceiver.ConnectMsmq(receiveCSA01MqAddress);
-                msmqOperateSender.ConnectMsmq(sendCSA01MaAddress);
-
-                //发送数据到msmq通道
-                if (msmqOperateReceiver.SendMsmq(filePath,"CSA01"))
+                try
                 {
-                    //接收msmq通道中的数据
-                    if (msmqOperateReceiver.ReceiveMsmq())
+                    //接收企业CSA01报文的msmq通道
+                    string receiveCSA01MqAddress = ConfigurationManager.AppSettings["ReceiveCSA01MqAddress"].ToString();
+                    //发送总署版CSA01报文的msmq通道
+                    string sendCSA01MqAddress = ConfigurationManager.AppSettings["SendCSA01MqAddress"].ToString();
+                    //网络科msmq通道
+                    string sendToNetWorkDepartMqAddress = ConfigurationManager.AppSettings["SendToNetWorkDepartMqAddress"].ToString();
+                    
+                    //MSMQ数据格式
+                    string messageType = ConfigurationManager.AppSettings["MessageType"].ToString();
+                    //报文落地保存父级目录
+                    string parentDirect = ConfigurationManager.AppSettings["CSAFileSaveDirect"].ToString();
+                    //数据是否需要加验签
+                    string messageSign = ConfigurationManager.AppSettings["MessageSigh"].ToString();
+
+                    //测试使用
+                    string filePath = ConfigurationManager.AppSettings["CSA01FilePath"].ToString();
+                    XmlDocument xmlDocument = new XmlDocument();
+                    xmlDocument.Load(filePath);
+                    string xmlContent = xmlDocument.OuterXml;
+                    MsmqOperate msmqSend = new MsmqOperate();
+                    msmqSend.ConnectMsmq(receiveCSA01MqAddress,false);
+                    if (msmqSend.Queue.Transactional)
                     {
-                        Message message = msmqOperateReceiver.Message;
-
-                        //报文落地保存名称
-                        string fullFilePath = fileSavePath + @"\" + DateTime.Now.ToString("yyyyMMddHHmmss") + message.Label+".xml";
-
-                        //报文落地，数据入库
-                        CsaXmlOperate.ReceiveCSA(message.Body,fullFilePath);
-
-                        //将企业发送的CSA01报文转换成总署版的CSA01报文
-                        string  finalCsa01=CsaXmlOperate.ConvertToCSA01(message.Body,fullFilePath);
-
-                        //发送总数版的CSA01报文
-                        msmqOperateSender.SendXmlToMsmq(finalCsa01,"CSA01");
+                        msmqSend.SendXmlToMsmqTransaction(xmlContent);
                     }
+                    else
+                    {
+                        msmqSend.SendXmlToMsmq(xmlContent);
+                    }
+
+                    //连接msmq
+                    MsmqOperate msmqOperateReceiver = new MsmqOperate();
+
+                    if (msmqOperateReceiver.ConnectMsmq(receiveCSA01MqAddress,false))
+                    {
+                        //接收msmq通道中的数据
+                        if (msmqOperateReceiver.ReceiveMsmqTransaction(messageType))
+                        {
+                            Message message = msmqOperateReceiver.Message;
+                            switch (messageType)
+                            {
+                                case "Xml":
+                                    message.Formatter = new XmlMessageFormatter(new Type[] { typeof(string) });
+                                    break;
+                                case "Binary":
+                                    message.Formatter = new BinaryMessageFormatter();
+                                    break;
+                                case "ActiveX":
+                                    message.Formatter = new ActiveXMessageFormatter();
+                                    break;
+                            }
+
+                            //数据加验签处理
+                            if(messageSign.Equals("true"))
+                            {
+                                //数据解签
+                            }
+
+                            string csa01FilePath = "";
+
+                            //数据入库，报文落地
+                            string relGuid = CsaXmlOperate.ReceiveCSA(message.Body, parentDirect, csa01FileNumber.ToString("000"),out csa01FilePath);
+
+                            //发送企业版的CSA01报文给网络科
+                            CsaXmlOperate.SendMessageToMSmqFromFile(csa01FilePath, relGuid, sendCSA01MqAddress, Sender.SendToNetWorkDepart,true);
+
+                            //将企业发送的CSA01报文转换成总署版的CSA01报文
+                            string fullFilePath = CsaXmlOperate.ConvertToCSA01(message.Body, parentDirect, csa01FileNumber.ToString("000"), relGuid);
+
+                            //发送总署版的CSA01报文给省电子口岸
+                            CsaXmlOperate.SendMessageToMSmqFromFile(fullFilePath, relGuid, sendToNetWorkDepartMqAddress, Sender.SendToCport,true);
+
+                            if (csa01FileNumber < 10)
+                            {
+                                csa01FileNumber++;
+                            }
+                            else
+                            {
+                                csa01FileNumber = 0;
+                            }
+                        }
+                
+                    }
+                    //阻止设定时间
+                    Thread.CurrentThread.Join(1000);
                 }
-                //阻止设定时间
-                Thread.CurrentThread.Join(1000);
+                catch(Exception ex)
+                {
+                    continue;
+                }
             }
         }
 
@@ -106,42 +152,87 @@ namespace CSATRANSSERVICE
         {
             while (true)
             {
-                //接收总署下发CSA02报文的mq通道
-                string receiveCSA01MqAddress = ConfigurationManager.AppSettings["ReceiveCSA02MqAddress"].ToString();
-
-                //发送企业版的CSA02报文的mq通道，
-                string sendCSA01MaAddress = ConfigurationManager.AppSettings["SendCSA02MqAddress"].ToString();
-
-                //测试使用
-                string filePath = ConfigurationManager.AppSettings["CSA02FilePath"].ToString();
-
-                ///企业CSA02报文落地保存目录
-                string fileSavePath = ConfigurationManager.AppSettings["CSA02FileSavePath"].ToString();
-
-                //连接msmq
-                MsmqOperate msmqOperate = new MsmqOperate();
-                msmqOperate.ConnectMsmq(receiveCSA01MqAddress);
-
-                //发送数据到msmq通道
-                if (msmqOperate.SendMsmq(filePath, "CSA02"))
+                try
                 {
-                    //接收msmq通道中的数据
-                    if (msmqOperate.ReceiveMsmq())
+                    //接收总署下发CSA02报文的mq通道
+                    string receiveCSA02MqAddress = ConfigurationManager.AppSettings["ReceiveCSA02MqAddress"].ToString();
+
+                    //MSMQ数据格式
+                    string messageType = ConfigurationManager.AppSettings["MessageType"].ToString();
+                    //报文落地保存父级目录
+                    string parentDirect = ConfigurationManager.AppSettings["CSAFileSaveDirect"].ToString();
+                    //数据是否需要加验签
+                    string messageSign = ConfigurationManager.AppSettings["MessageSigh"].ToString();
+
+                    #region 测试使用
+                    string filePath = ConfigurationManager.AppSettings["CSA02FilePath"].ToString();
+                    XmlDocument xmlDocument = new XmlDocument();
+                    xmlDocument.Load(filePath);
+                    string xmlContent = xmlDocument.OuterXml;
+                    MsmqOperate msmqSend = new MsmqOperate();
+                    msmqSend.ConnectMsmq(receiveCSA02MqAddress, false);
+                    if (msmqSend.Queue.Transactional)
                     {
-                        Message message = msmqOperate.Message;
-
-                        //报文落地保存名称
-                        string fullFilePath = fileSavePath + @"\" + DateTime.Now.ToString("yyyyMMddHHmmss") + message.Label + ".xml";
-
-                        //将总署下发的CSA02报文转换成企业版的CSA02报文，报文落地
-                        CsaXmlOperate.ConvertToCSA02(message.Body, fullFilePath);
-
-                        //数据入库
-                        CsaXmlOperate.ReceiveCSA(fullFilePath);
+                        msmqSend.SendXmlToMsmqTransaction(xmlContent);
                     }
+                    else
+                    {
+                        msmqSend.SendXmlToMsmq(xmlContent);
+                    }
+                    #endregion
+
+                    //连接msmq
+                    MsmqOperate msmqOperate = new MsmqOperate();
+                    if (msmqOperate.ConnectMsmq(receiveCSA02MqAddress, false))
+                    {
+                        //接收msmq通道中的数据
+                        if (msmqOperate.ReceiveMsmqTransaction("Xml"))
+                        {
+                            Message message = msmqOperate.Message;
+                            switch (messageType)
+                            {
+                                case "Xml":
+                                    message.Formatter = new XmlMessageFormatter(new Type[] { typeof(string) });
+                                    break;
+                                case "Binary":
+                                    message.Formatter = new BinaryMessageFormatter();
+                                    break;
+                                case "ActiveX":
+                                    message.Formatter = new ActiveXMessageFormatter();
+                                    break;
+                            }
+
+                            //将总署下发的CSA02报文转换成企业版的CSA02报文，报文落地
+                            string csa02FileSavePath = "";
+                            string relGuid = "";
+                            string receiverId = CsaXmlOperate.ConvertToCSA02(message.Body, parentDirect, csa02FileNumber.ToString("000"), out csa02FileSavePath, out relGuid);
+                            #region 发送回执给企业
+                            //获取企业的msmq地址
+                            string mqAddress = CsaXmlOperate.GetCompanyMqAddress(receiverId).ToString();
+
+                            //获取转换后xml文件内容
+                            string messageContent = "";
+                            XmlDocument xmlDoc = new XmlDocument();
+                            xmlDoc.Load(csa02FileSavePath);
+                            messageContent = xmlDoc.OuterXml;
+
+                            //数据加验签处理
+                            if (messageSign.Equals("true"))
+                            {
+                                //数据解签
+                            }
+
+                            CsaXmlOperate.SendMessageToMSmqByString(messageContent, relGuid, mqAddress, Sender.SendToCompany, csa02FileSavePath, true);
+                            #endregion
+                        }
+                    }
+                    //阻止设定时间
+                    Thread.CurrentThread.Join(1000);
                 }
-                //阻止设定时间
-                Thread.CurrentThread.Join(1000);
+                catch(Exception ex)
+                {
+                    continue;
+                }
             }
         }
     }

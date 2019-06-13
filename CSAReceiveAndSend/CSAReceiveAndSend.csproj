@@ -4,10 +4,10 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{EBD1FC0F-3029-4C79-BFA1-470D13802FB0}</ProjectGuid>
+    <ProjectGuid>{BE7DEA58-0441-4F4D-A297-31A8F59C189F}</ProjectGuid>
     <OutputType>WinExe</OutputType>
-    <RootNamespace>CSATRANSSERVICE</RootNamespace>
-    <AssemblyName>CSATRANSSERVICE</AssemblyName>
+    <RootNamespace>CSAReceiveAndSend</RootNamespace>
+    <AssemblyName>CSAReceiveAndSend</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
@@ -47,25 +47,21 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Commons\CommonEnumerator.cs" />
-    <Compile Include="CsaService.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="CsaService.Designer.cs">
-      <DependentUpon>CsaService.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Commons\CsaXmlOperate.cs" />
     <Compile Include="Commons\MsmqOperate.cs" />
-    <Compile Include="Program.cs" />
     <Compile Include="ProjectInstaller.cs">
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="ProjectInstaller.Designer.cs">
       <DependentUpon>ProjectInstaller.cs</DependentUpon>
     </Compile>
+    <Compile Include="CSAReceiveAndSendService.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="CSAReceiveAndSendService.Designer.cs">
+      <DependentUpon>CSAReceiveAndSendService.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Commons\SqlHelper.cs" />
-    <Compile Include="Commons\XmlHelper.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

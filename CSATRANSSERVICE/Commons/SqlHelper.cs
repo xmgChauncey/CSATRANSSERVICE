@@ -12,7 +12,7 @@ public abstract class SqlHelper
 
     /// <summary>
     /// Method: ExecuteNonQuery
-    /// Description: 执行一个不需要返回值的SqlCommand命令，通过指定专用的连接字符串，使用参数数组形式提供参数列表
+    /// Description: 执行一个不需要返回结果的SqlCommand命令，通过指定专用的连接字符串，使用参数数组形式提供参数列表
     /// Author: Xiecg
     /// Date: 2019/06/09
     /// Parameter: connectionString 一个有效的数据库连接字符串
