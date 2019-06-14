@@ -70,22 +70,6 @@ namespace CSATRANSSERVICE
                     //数据是否需要加验签
                     string messageSign = ConfigurationManager.AppSettings["MessageSigh"].ToString();
 
-                    //测试使用
-                    string filePath = ConfigurationManager.AppSettings["CSA01FilePath"].ToString();
-                    XmlDocument xmlDocument = new XmlDocument();
-                    xmlDocument.Load(filePath);
-                    string xmlContent = xmlDocument.OuterXml;
-                    MsmqOperate msmqSend = new MsmqOperate();
-                    msmqSend.ConnectMsmq(receiveCSA01MqAddress, false);
-                    if (msmqSend.Queue.Transactional)
-                    {
-                        msmqSend.SendXmlToMsmqTransaction(xmlContent);
-                    }
-                    else
-                    {
-                        msmqSend.SendXmlToMsmq(xmlContent);
-                    }
-
                     //连接msmq
                     MsmqOperate msmqOperateReceiver = new MsmqOperate();
 
@@ -174,23 +158,6 @@ namespace CSATRANSSERVICE
                     string parentDirect = ConfigurationManager.AppSettings["CSAFileSaveDirect"].ToString();
                     //数据是否需要加验签
                     string messageSign = ConfigurationManager.AppSettings["MessageSigh"].ToString();
-
-                    #region 测试使用
-                    string filePath = ConfigurationManager.AppSettings["CSA02FilePath"].ToString();
-                    XmlDocument xmlDocument = new XmlDocument();
-                    xmlDocument.Load(filePath);
-                    string xmlContent = xmlDocument.OuterXml;
-                    MsmqOperate msmqSend = new MsmqOperate();
-                    msmqSend.ConnectMsmq(receiveCSA02MqAddress, false);
-                    if (msmqSend.Queue.Transactional)
-                    {
-                        msmqSend.SendXmlToMsmqTransaction(xmlContent);
-                    }
-                    else
-                    {
-                        msmqSend.SendXmlToMsmq(xmlContent);
-                    }
-                    #endregion
 
                     //连接msmq
                     MsmqOperate msmqOperate = new MsmqOperate();
