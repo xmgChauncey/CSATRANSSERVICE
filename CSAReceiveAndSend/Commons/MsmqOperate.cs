@@ -27,9 +27,17 @@ namespace CSAReceiveAndSend
         /// Parameter: msmqAddress msmq地址
         /// Returns: void
         ///</summary>
-        public bool ConnectMsmq(string msmqAddress)
+        public bool ConnectMsmq(string msmqAddress, bool remote)
         {
-            if (MessageQueue.Exists(msmqAddress))
+            if (!remote)
+            {
+                if (MessageQueue.Exists(msmqAddress))
+                {
+                    Queue = new MessageQueue(msmqAddress);
+                    return true;
+                }
+            }
+            else
             {
                 Queue = new MessageQueue(msmqAddress);
                 return true;

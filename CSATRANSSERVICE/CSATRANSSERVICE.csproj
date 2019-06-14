@@ -47,7 +47,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Commons\PackSystemEventLog.cs" />
     <Compile Include="Commons\CommonEnumerator.cs" />
+    <Compile Include="Commons\XsdCheck.cs" />
     <Compile Include="CsaService.cs">
       <SubType>Component</SubType>
     </Compile>

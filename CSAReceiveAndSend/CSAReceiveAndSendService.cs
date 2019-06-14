@@ -59,13 +59,13 @@ namespace CSAReceiveAndSend
                 xmlDoc.Load(filePath);
                 string xmlContent = xmlDoc.InnerXml;
                 MsmqOperate msmqSend = new MsmqOperate();
-                msmqSend.ConnectMsmq(receivMq);
+                msmqSend.ConnectMsmq(receivMq,false);
                 msmqSend.SendXmlToMsmqTransaction(xmlContent);
 
                 ReceiveAndSendTransaction("Xml",receivMq,sendMq);
 
                 MsmqOperate msmqReceive = new MsmqOperate();
-                msmqReceive.ConnectMsmq(sendMq);
+                msmqReceive.ConnectMsmq(sendMq,false);
                 msmqReceive.ReceiveMsmqTransaction("Xml");
                 msmqReceive.Message.Formatter = new XmlMessageFormatter(new Type[] { typeof(string) });
                 string bodyContent = msmqReceive.Message.Body.ToString();
@@ -94,7 +94,7 @@ namespace CSAReceiveAndSend
 
             try
             {
-                if (receiveMsmqOperate.ConnectMsmq(receiveMqAddress) && sendMsmqOperate.ConnectMsmq(sendMqAddress))
+                if (receiveMsmqOperate.ConnectMsmq(receiveMqAddress,false) && sendMsmqOperate.ConnectMsmq(sendMqAddress,false))
                 {
                     try
                     {
