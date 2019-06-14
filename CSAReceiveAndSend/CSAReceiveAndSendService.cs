@@ -22,9 +22,12 @@ namespace CSAReceiveAndSend
             InitializeComponent();
         }
 
-        //protected override void OnStart(string[] args)
-        //{
-        //}
+        protected override void OnStart(string[] args)
+        {
+            //todo something
+            Thread thread = new Thread(new ThreadStart(ReceiveAndSend));
+            thread.Start();
+        }
 
         public void OnStart()
         {
@@ -36,43 +39,31 @@ namespace CSAReceiveAndSend
 
         protected override void OnStop()
         {
-
+            base.Stop();
         }
 
         private void ReceiveAndSend()
         {
             while (true)
             {
-                //接收企业CSA01报文的msmq通道 
-                string receivMq = ConfigurationManager.AppSettings["ReceiveMq"].ToString();
+                try
+                {
+                    //接收企业CSA01报文的msmq通道 
+                    string receivMq = ConfigurationManager.AppSettings["ReceiveMq"].ToString();
 
-                //发送总署版CSA01报文的msmq通道
-                string sendMq = ConfigurationManager.AppSettings["SendMq"].ToString();
+                    //发送总署版CSA01报文的msmq通道
+                    string sendMq = ConfigurationManager.AppSettings["SendMq"].ToString();
 
-                //测试使用
-                string filePath = ConfigurationManager.AppSettings["CSA01FilePath"].ToString();
+                    //MSMQ数据格式
+                    string messageType = ConfigurationManager.AppSettings["MessageType"].ToString();
 
-                string fileSavePath = ConfigurationManager.AppSettings["CSA01FileSavePath"].ToString();
-
-                //创建发送数据
-                XmlDocument xmlDoc = new XmlDocument();
-                xmlDoc.Load(filePath);
-                string xmlContent = xmlDoc.InnerXml;
-                MsmqOperate msmqSend = new MsmqOperate();
-                msmqSend.ConnectMsmq(receivMq,false);
-                msmqSend.SendXmlToMsmqTransaction(xmlContent);
-
-                ReceiveAndSendTransaction("Xml",receivMq,sendMq);
-
-                MsmqOperate msmqReceive = new MsmqOperate();
-                msmqReceive.ConnectMsmq(sendMq,false);
-                msmqReceive.ReceiveMsmqTransaction("Xml");
-                msmqReceive.Message.Formatter = new XmlMessageFormatter(new Type[] { typeof(string) });
-                string bodyContent = msmqReceive.Message.Body.ToString();
-                fileSavePath = fileSavePath + "\\" + DateTime.Now.ToString("yyyyMMddHHmmssfff") + ".xml";
-                File.WriteAllText(fileSavePath, bodyContent);
-
-                Thread.CurrentThread.Join(1000);
+                    ReceiveAndSendTransaction(messageType, receivMq, sendMq);
+                    Thread.CurrentThread.Join(1000);
+                }
+                catch(Exception ex)
+                {
+                    continue;
+                }
             }
         }
 

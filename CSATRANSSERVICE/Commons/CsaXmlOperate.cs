@@ -82,7 +82,7 @@ namespace CSATRANSSERVICE
                 string fullFilePath = FiletoSave(xmlString, parentDirect, senderId, "CSA01", fileNumber);
 
                 csa01FilePath = fullFilePath;
-                SaveOperateInfo(guid, OperateType.MessageReceive, OperateName.MessageReceive, OperateResult.OperateSuccess, "", fullFilePath);
+                SaveOperateInfo(guid, OperateType.MessageReceive, OperateName.MessageReceive, OperateResult.OperateSuccess, Operator.ReceiveDeclMessage, fullFilePath);
             }
             catch(Exception ex)
             {
@@ -148,7 +148,7 @@ namespace CSATRANSSERVICE
 
                 //保存文件
                 fullFilePath = FiletoSave(xmlDoc.OuterXml, parentDirect, senderId, "ZSCSA01", fileNumber);
-                SaveOperateInfo(relGuid, OperateType.MessageConvert, OperateName.MessageConvert, OperateResult.OperateSuccess, "", fullFilePath);
+                SaveOperateInfo(relGuid, OperateType.MessageConvert, OperateName.MessageConvert, OperateResult.OperateSuccess, Operator.CSA01ConvertToZSCSA01, fullFilePath);
             }
             catch(Exception ex)
             {
@@ -218,7 +218,12 @@ namespace CSATRANSSERVICE
                 {
                     //保存总署版CSA02报文
                     string zsCSA02FullFilePath = FiletoSave(xmlDoc.OuterXml, parentDirect, receiverId, "ZSCSA02", fileNumber);
-                    SaveOperateInfo(guid, OperateType.MessageReceive, OperateName.MessageReceive, OperateResult.OperateSuccess, "", zsCSA02FullFilePath);
+
+                    //记录回执关联信息
+                    SaveOperateInfo(guid,OperateType.AssociatedReceipts,OperateName.AssociatedReceipts,OperateResult.OperateSuccess,Operator.AssociatedReceipts, zsCSA02FullFilePath);
+
+                    //记录保存操作信息
+                    SaveOperateInfo(guid, OperateType.MessageReceive, OperateName.MessageReceive, OperateResult.OperateSuccess, Operator.ReceiveResponseMessage, zsCSA02FullFilePath);
 
                     //替换报文头的多个节点名称
                     xmlString = xmlString.Replace("ContaDeclareResponseInfo", "Manifest").Replace("MsgId", "MessageID").Replace("MsgType", "MessageType");
@@ -249,7 +254,7 @@ namespace CSATRANSSERVICE
                     }
 
                     fullFilePath = FiletoSave(xmlDocSave.OuterXml, parentDirect, receiverId, "CSA02", fileNumber);
-                    SaveOperateInfo(guid, OperateType.MessageConvert, OperateName.MessageConvert, OperateResult.OperateSuccess, "", fullFilePath);
+                    SaveOperateInfo(guid, OperateType.MessageConvert, OperateName.MessageConvert, OperateResult.OperateSuccess, Operator.ZSCSA02ConvertToCSA02, fullFilePath);
                 }
             }
             catch(Exception ex)
@@ -334,6 +339,21 @@ namespace CSATRANSSERVICE
 
         /// <summary>
         /// Method: FiletoSave
+        /// Description: 保存文件
+        /// Author: Xiecg
+        /// Date: 2019/06/13
+        /// Parameter: fileContent 文件内容
+        /// Parameter: fileName 文件完整路径
+        /// Returns: void
+        ///</summary>
+        public static string FiletoSave(string fileContent, string fileName)
+        {
+            File.WriteAllText(fileName, fileContent);
+            return fileName;
+        }
+
+        /// <summary>
+        /// Method: FiletoSave
         /// Description: 按照parentDirect\ + "yyyyMMddHHmmssfff"+ ".xml"格式保存文件
         /// Author: Xiecg
         /// Date: 2019/06/13
@@ -341,15 +361,16 @@ namespace CSATRANSSERVICE
         /// Parameter: parentDirect 父级目录
         /// Returns: void
         ///</summary>
-        public static string FiletoSave(string fileContent, string parentDirect)
+        public static string FiletoSave(string fileContent, string parentDirect,string specialString)
         {
-            string fileSaveName = parentDirect + "\\" + DateTime.Now.ToString("yyyyMMddHHmmssfff")  + ".xml";
+            string fileName= DateTime.Now.ToString("yyyyMMddHHmmssfff") + ".xml";
+            string fileSaveName = parentDirect + "\\" + specialString+ DateTime.Now.ToString("yyyyMMddHHmmssfff")  + ".xml";
             if (!Directory.Exists(parentDirect))
             {
                 Directory.CreateDirectory(parentDirect);
             }
             File.WriteAllText(fileSaveName, fileContent);
-            return fileSaveName;
+            return fileName;
         }
 
         /// <summary>
@@ -444,12 +465,15 @@ namespace CSATRANSSERVICE
             string chekResult = "";
             if (XsdCheck.IsXsdCheck.Equals("true"))
             {
-                MemoryStream memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(xmlString));
-                if (!XsdCheck.ValidateXML(memoryStream, schemaFile, out chekResult))
+                using (MemoryStream memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(xmlString)))
                 {
-                    string inValidedPath = ConfigurationManager.AppSettings["InValidedMessageSavePath"].ToString();
-                    FiletoSave(xmlString, inValidedPath);
-                    return false;
+                    if (!XsdCheck.ValidateXML(memoryStream, schemaFile, out chekResult))
+                    {
+                        string inValidedPath = ConfigurationManager.AppSettings["InValidedMessageSavePath"].ToString();
+                        string xsdFileName = FiletoSave(xmlString, inValidedPath, "");
+                        FiletoSave(chekResult, inValidedPath + "\\" + "XsdCheck" + xsdFileName);
+                        return false;
+                    }
                 }
             }
             return true;

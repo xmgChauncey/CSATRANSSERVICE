@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using System.ServiceProcess;
 using System.Text;
@@ -14,15 +15,22 @@ namespace CSATRANSSERVICE
         /// </summary>
         static void Main()
         {
-            //ServiceBase[] ServicesToRun;
-            //ServicesToRun = new ServiceBase[]
-            //{
-            //    new CsaService()
-            //};
-            //ServiceBase.Run(ServicesToRun);
+            string isDebug= ConfigurationManager.AppSettings["IsDebug"].ToString();
+            if(isDebug.Equals("true"))
+            {
+                CsaService csaService = new CsaService();
+                csaService.OnStart();
+            }
+            else
+            {
+                ServiceBase[] ServicesToRun;
+                ServicesToRun = new ServiceBase[]
+                {
+                new CsaService()
+                };
+                ServiceBase.Run(ServicesToRun);
+            }
 
-            CsaService csaService = new CsaService();
-            csaService.OnStart();
         }
     }
 }

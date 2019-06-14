@@ -13,6 +13,7 @@ namespace CSATRANSSERVICE
     public abstract class XsdCheck
     {
         private static readonly string isXsdCheck = ConfigurationManager.AppSettings["XsdCheck"].ToString();
+
         private static readonly string cyContaDeclareXsd = ConfigurationManager.AppSettings["CyContaDeclareXsd"].ToString();
         private static readonly string cyContaDeclareResponsXsd = ConfigurationManager.AppSettings["CyContaDeclareResponsXsd"].ToString();
         private static readonly string contaDeclareXsd = ConfigurationManager.AppSettings["ContaDeclareXsd"].ToString();
@@ -27,6 +28,8 @@ namespace CSATRANSSERVICE
         public static string ContaDeclareXsd => contaDeclareXsd;
 
         public static string ContaDeclareResponsXsd => contaDeclareResponsXsd;
+
+
 
         /// <summary>
         /// Method: ValidateXML

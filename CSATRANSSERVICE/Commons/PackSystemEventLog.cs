@@ -94,7 +94,7 @@ namespace CSATRANSSERVICE
         }
 
         /// <summary>
-        /// 删除事件源中logName(好像删除了所有的该分类的日志)
+        /// 删除事件源中logName(删除所有的该分类的日志)
         /// </summary>
         /// <param name="eventSource"></param>
         /// <param name="logName"></param>
