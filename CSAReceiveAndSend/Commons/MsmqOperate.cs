@@ -6,16 +6,17 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Configuration;
 using System.Xml;
+using System.Collections;
 
 namespace CSAReceiveAndSend
 {
     public class MsmqOperate
     {
-        MessageQueue queue;
-        Message message = new Message();
-        MessageQueueTransaction mqTransaction = new MessageQueueTransaction();
+        private MessageQueue queue = new MessageQueue();
+        private Message messageTrans = new Message();
+        private MessageQueueTransaction mqTransaction = new MessageQueueTransaction();
 
-        public Message Message { get => message; set => message = value; }
+        public Message MessageTrans { get => messageTrans; set => messageTrans = value; }
         public MessageQueue Queue { get => queue; set => queue = value; }
         public MessageQueueTransaction MqTransaction { get => mqTransaction; set => mqTransaction = value; }
 
@@ -27,22 +28,10 @@ namespace CSAReceiveAndSend
         /// Parameter: msmqAddress msmq地址
         /// Returns: void
         ///</summary>
-        public bool ConnectMsmq(string msmqAddress, bool remote)
+        public bool ConnectMsmq(string msmqAddress)
         {
-            if (!remote)
-            {
-                if (MessageQueue.Exists(msmqAddress))
-                {
-                    Queue = new MessageQueue(msmqAddress);
-                    return true;
-                }
-            }
-            else
-            {
-                Queue = new MessageQueue(msmqAddress);
-                return true;
-            }
-            return false;
+            Queue = new MessageQueue(msmqAddress);
+            return true;
         }
 
         /// <summary>
@@ -57,10 +46,10 @@ namespace CSAReceiveAndSend
         {
             try
             {
-                Message.Body = sendMessage;
-                Message.Label = "Xml";
-                Message.Formatter = new XmlMessageFormatter(new Type[] { typeof(string) });
-                Queue.Send(Message);
+                MessageTrans.Body = sendMessage;
+                MessageTrans.Label = "Xml";
+                MessageTrans.Formatter = new XmlMessageFormatter(new Type[] { typeof(string) });
+                Queue.Send(MessageTrans);
             }
             catch (Exception ex)
             {
@@ -81,11 +70,11 @@ namespace CSAReceiveAndSend
         {
             try
             {
-                Message.Body = sendMessage;
-                Message.Label = "Xml";
-                Message.Formatter = new XmlMessageFormatter(new Type[] { typeof(string) });
+                MessageTrans.Body = sendMessage;
+                MessageTrans.Label = "Xml";
+                MessageTrans.Formatter = new XmlMessageFormatter(new Type[] { typeof(string) });
                 MqTransaction.Begin();
-                Queue.Send(Message, MqTransaction);
+                Queue.Send(MessageTrans, MqTransaction);
                 MqTransaction.Commit();
             }
             catch (Exception ex)
@@ -109,9 +98,9 @@ namespace CSAReceiveAndSend
         {
             try
             {
-                Message = new Message(binaryMessage, new BinaryMessageFormatter());
-                Message.Label = "Binary" + "|" + fileType;
-                Queue.Send(Message);
+                MessageTrans = new Message(binaryMessage, new BinaryMessageFormatter());
+                MessageTrans.Label = "Binary" + "|" + fileType;
+                Queue.Send(MessageTrans);
             }
             catch (Exception ex)
             {
@@ -133,10 +122,10 @@ namespace CSAReceiveAndSend
         {
             try
             {
-                Message = new Message(binaryMessage, new BinaryMessageFormatter());
-                Message.Label = "Binary" + "|" + fileType;
+                MessageTrans = new Message(binaryMessage, new BinaryMessageFormatter());
+                MessageTrans.Label = "Binary" + "|" + fileType;
                 MqTransaction.Begin();
-                Queue.Send(Message);
+                Queue.Send(MessageTrans);
                 MqTransaction.Commit();
             }
             catch (Exception ex)
@@ -159,10 +148,10 @@ namespace CSAReceiveAndSend
         {
             try
             {
-                Message.Body = sendMessage;
-                Message.Label = "ActiveX";
-                Message.Formatter = new ActiveXMessageFormatter();
-                Queue.Send(Message);
+                MessageTrans.Body = sendMessage;
+                MessageTrans.Label = "ActiveX";
+                MessageTrans.Formatter = new ActiveXMessageFormatter();
+                Queue.Send(MessageTrans);
             }
             catch (Exception ex)
             {
@@ -183,11 +172,11 @@ namespace CSAReceiveAndSend
         {
             try
             {
-                Message.Body = sendMessage;
-                Message.Label = "ActiveX";
-                Message.Formatter = new ActiveXMessageFormatter();
+                MessageTrans.Body = sendMessage;
+                MessageTrans.Label = "ActiveX";
+                MessageTrans.Formatter = new ActiveXMessageFormatter();
                 MqTransaction.Begin();
-                Queue.Send(Message, MqTransaction);
+                Queue.Send(MessageTrans, MqTransaction);
                 MqTransaction.Commit();
             }
             catch (Exception ex)
@@ -210,17 +199,17 @@ namespace CSAReceiveAndSend
         {
             try
             {               
-                Message = Queue.Receive();
+                MessageTrans = Queue.Receive();
                 switch (messageFormatter)
                 {
                     case "Xml":
-                        Message.Formatter = new XmlMessageFormatter(new Type[] { typeof(string) });
+                        MessageTrans.Formatter = new XmlMessageFormatter(new Type[] { typeof(string) });
                         break;
                     case "Binary":
-                        Message.Formatter = new BinaryMessageFormatter();
+                        MessageTrans.Formatter = new BinaryMessageFormatter();
                         break;
                     case "ActiveX":
-                        Message.Formatter = new ActiveXMessageFormatter();
+                        MessageTrans.Formatter = new ActiveXMessageFormatter();
                         break;
                 }
             }
@@ -244,18 +233,18 @@ namespace CSAReceiveAndSend
             try
             {
                 MqTransaction.Begin();
-                Message = Queue.Receive();
+                MessageTrans = Queue.Receive();
                 MqTransaction.Commit();
                 switch (messageFormatter)
                 {
                     case "Xml":
-                        Message.Formatter = new XmlMessageFormatter(new Type[] { typeof(string) });
+                        MessageTrans.Formatter = new XmlMessageFormatter(new Type[] { typeof(string) });
                         break;
                     case "Binary":
-                        Message.Formatter = new BinaryMessageFormatter();
+                        MessageTrans.Formatter = new BinaryMessageFormatter();
                         break;
                     case "ActiveX":
-                        Message.Formatter = new ActiveXMessageFormatter();
+                        MessageTrans.Formatter = new ActiveXMessageFormatter();
                         break;
                 }
             }
@@ -265,6 +254,65 @@ namespace CSAReceiveAndSend
                 return false;
             }
             return true;
+        }
+
+        public static void ReceiveMsg(string mqPath)
+        {
+            MessageQueue receiveQueue = new MessageQueue(mqPath);
+            receiveQueue.Formatter = new BinaryMessageFormatter();
+
+            MessagePropertyFilter settings = new MessagePropertyFilter();
+            settings.SetAll();
+            receiveQueue.MessageReadPropertyFilter = settings;
+
+
+            Queue msgQueue = new Queue();
+
+            //定位事务中的第一个消息
+            Message msgPeek;
+            while (true)
+            {
+                msgPeek = receiveQueue.Peek(TimeSpan.FromMilliseconds(5000));
+                if (!msgPeek.IsFirstInTransaction)
+                {
+                    receiveQueue.Receive(TimeSpan.FromMilliseconds(5000));
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            if (msgPeek.IsFirstInTransaction)
+            {
+                #region 读取队列中的一个事务的消息放入队列中，并获取附加消息
+                MessageQueueTransaction receiveTransaction = new MessageQueueTransaction();
+                receiveTransaction.Begin();
+                try
+                {
+                    while (true)
+                    {
+                        Message msg = receiveQueue.Receive(TimeSpan.FromMilliseconds(5000), receiveTransaction);
+                        msgQueue.Enqueue(msg);
+
+                        if (msg.IsLastInTransaction)
+                        {
+                            receiveTransaction.Commit();
+                            break;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    receiveTransaction.Commit();
+                    string error = string.Empty;
+                }
+                finally
+                {
+                    receiveTransaction.Dispose();
+                }
+                #endregion
+            }
         }
     }
 }

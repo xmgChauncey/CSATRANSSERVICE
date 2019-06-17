@@ -28,22 +28,10 @@ namespace CSATRANSSERVICE
         /// Parameter: msmqAddress msmq地址
         /// Returns: void
         ///</summary>
-        public bool ConnectMsmq(string msmqAddress,bool remote)
+        public bool ConnectMsmq(string msmqAddress)
         {
-            if(!remote)
-            {
-                if (MessageQueue.Exists(msmqAddress))
-                {
-                    Queue = new MessageQueue(msmqAddress);
-                    return true;
-                }
-            }
-            else
-            {
-                Queue = new MessageQueue(msmqAddress);
-                return true;
-            }
-            return false;
+            Queue = new MessageQueue(msmqAddress);
+            return true;
         }
 
         /// <summary>
@@ -66,6 +54,7 @@ namespace CSATRANSSERVICE
             catch (Exception ex)
             {
                 return false;
+                throw ex;
             }
             return true;
         }
@@ -93,6 +82,7 @@ namespace CSATRANSSERVICE
             {
                 MqTransaction.Abort();
                 return false;
+                throw ex;
             }
             return true;
         }
@@ -117,6 +107,7 @@ namespace CSATRANSSERVICE
             catch (Exception ex)
             {
                 return false;
+                throw ex;
             }
             return true;
         }
@@ -144,6 +135,7 @@ namespace CSATRANSSERVICE
             {
                 MqTransaction.Abort();
                 return false;
+                throw ex;
             }
             return true;
         }
@@ -168,6 +160,7 @@ namespace CSATRANSSERVICE
             catch (Exception ex)
             {
                 return false;
+                throw ex;
             }
             return true;
         }
@@ -195,6 +188,7 @@ namespace CSATRANSSERVICE
             {
                 MqTransaction.Abort();
                 return false;
+                throw ex;
             }
             return true;
         }
@@ -225,9 +219,10 @@ namespace CSATRANSSERVICE
                         break;
                 }
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
                 return false;
+                throw ex;
             }
             return true;
         }
@@ -240,18 +235,19 @@ namespace CSATRANSSERVICE
         /// Parameter: messageFormatter msmq数据格式Xml、Binary或者ActiveX
         /// Returns: bool 接收成功为true，接收失败为false
         ///</summary>
-        public bool ReceiveMsmqTransaction(string messageFormatter)
+        public bool ReceiveMsmqTransaction()
         {
             try
             {
                 MqTransaction.Begin();
-                Message = Queue.Receive();
+                Message = Queue.Receive(MqTransaction);
                 MqTransaction.Commit();
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
                 MqTransaction.Abort();
                 return false;
+                throw ex;
             }
             return true;
         }

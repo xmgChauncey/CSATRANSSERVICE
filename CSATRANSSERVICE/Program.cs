@@ -16,6 +16,7 @@ namespace CSATRANSSERVICE
         static void Main()
         {
             string isDebug= ConfigurationManager.AppSettings["IsDebug"].ToString();
+
             if(isDebug.Equals("true"))
             {
                 CsaService csaService = new CsaService();

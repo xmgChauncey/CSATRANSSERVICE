@@ -29,13 +29,6 @@ namespace CSATRANSSERVICE
             string guid = "";
             try
             {
-                //报文XSD校验
-                if (!XmlFileXsdCheck(xmlString, XsdCheck.CyContaDeclareXsd))
-                {
-                    csa01FilePath = "";
-                    return "";
-                }
-
                 XmlDocument xmlDoc = new XmlDocument();
                 xmlDoc.LoadXml(xmlString);
 
@@ -140,12 +133,6 @@ namespace CSATRANSSERVICE
                 XmlHelper.Delete(xmlDoc, "/ContaDeclareInfo/Declaration/Data/MMSI", "");
                 #endregion
 
-                //报文XSD校验
-                if (!XmlFileXsdCheck(xmlDoc.InnerXml, XsdCheck.ContaDeclareXsd))
-                {
-                    return fullFilePath;
-                }
-
                 //保存文件
                 fullFilePath = FiletoSave(xmlDoc.OuterXml, parentDirect, senderId, "ZSCSA01", fileNumber);
                 SaveOperateInfo(relGuid, OperateType.MessageConvert, OperateName.MessageConvert, OperateResult.OperateSuccess, Operator.CSA01ConvertToZSCSA01, fullFilePath);
@@ -177,12 +164,6 @@ namespace CSATRANSSERVICE
 
             try
             {
-                //报文XSD校验
-                if (!XmlFileXsdCheck(xmlString, XsdCheck.ContaDeclareResponsXsd))
-                {
-                    return receiverId;
-                }
-
                 XmlDocument xmlDoc = new XmlDocument();
                 xmlDoc.LoadXml(xmlString);
 
@@ -244,14 +225,8 @@ namespace CSATRANSSERVICE
                     xmlDocSave.LoadXml(xElement.ToString());
 
                     //添加命名空间
-                    XmlHelper.Update(xmlDocSave, "Manifest", "xmlns", "urn:Declaration:datamodel:standard:CN:CSA02");
+                    XmlHelper.Update(xmlDocSave, "Manifest", "xmlns", "urn:Declaration:datamodel:standard:CN:CSA02:1");
                     XmlHelper.Update(xmlDocSave, "Manifest", "xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance");
-
-                    //报文XSD校验
-                    if (!XmlFileXsdCheck(xmlDocSave.OuterXml, XsdCheck.CyContaDeclareResponsXsd))
-                    {
-                        return receiverId;
-                    }
 
                     fullFilePath = FiletoSave(xmlDocSave.OuterXml, parentDirect, receiverId, "CSA02", fileNumber);
                     SaveOperateInfo(guid, OperateType.MessageConvert, OperateName.MessageConvert, OperateResult.OperateSuccess, Operator.ZSCSA02ConvertToCSA02, fullFilePath);
@@ -276,10 +251,10 @@ namespace CSATRANSSERVICE
         /// Parameter: remote msmq是否远程的
         /// Returns: void
         ///</summary>
-        public static void SendMessageToMSmqFromFile(string fullFilePath,string relGuid,string msmqAddress,string receiver,bool remote)
+        public static void SendMessageToMSmqFromFile(string fullFilePath,string relGuid,string msmqAddress,string receiver)
         {
             MsmqOperate msmqOperateSender = new MsmqOperate();
-            if(msmqOperateSender.ConnectMsmq(msmqAddress,remote))
+            if(msmqOperateSender.ConnectMsmq(msmqAddress))
             {
                 XmlDocument xmlDoc = new XmlDocument();
                 xmlDoc.Load(fullFilePath);
@@ -304,10 +279,10 @@ namespace CSATRANSSERVICE
         /// Parameter: remote 是否远程
         /// Returns: void
         ///</summary>
-        public static void SendMessageToMSmqByString(string messageContent, string relGuid, string msmqAddress, string receiver,string fullFilePath,bool remote)
+        public static void SendMessageToMSmqByString(string messageContent, string relGuid, string msmqAddress, string receiver,string fullFilePath)
         {
             MsmqOperate msmqOperateSender = new MsmqOperate();
-            if (msmqOperateSender.ConnectMsmq(msmqAddress,remote))
+            if (msmqOperateSender.ConnectMsmq(msmqAddress))
             {
                 if (msmqOperateSender.SendXmlToMsmqTransaction(messageContent))
                 {
@@ -370,7 +345,7 @@ namespace CSATRANSSERVICE
                 Directory.CreateDirectory(parentDirect);
             }
             File.WriteAllText(fileSaveName, fileContent);
-            return fileName;
+            return fileSaveName;
         }
 
         /// <summary>
@@ -415,7 +390,7 @@ namespace CSATRANSSERVICE
         /// Parameter: fileSavePath 文件路径
         /// Returns: void
         ///</summary>
-        public static void SaveOperateInfo(string relGuid,string operateType,string operateName,string operateResult,string operateRemark,string fileSavePath)
+        public static void SaveOperateInfo(string relGuid, string operateType, string operateName, string operateResult, string operateRemark, string fileSavePath)
         {
             #region 将对报文的操作数据记录在MESSAGEINFOLOG表中
             string cmdText = "INSERT INTO MESSAGEINFOLOG(GUID,RELGUID,OPERATEDATE,OPERATETYPE,OPERATENAME,OPERATERESULT,OPERATEREMARK,FILESAVEPATH) VALUES(@GUID,@RELGUID,@OPERATEDATE,@OPERATETYPE,@OPERATENAME,@OPERATERESULT,@OPERATEREMARK,@FILESAVEPATH)";
@@ -428,7 +403,7 @@ namespace CSATRANSSERVICE
             parameters[5] = new SqlParameter("@OPERATERESULT", operateResult);
             parameters[6] = new SqlParameter("@OPERATEREMARK", operateRemark);
             parameters[7] = new SqlParameter("@FILESAVEPATH", fileSavePath);
-           SqlHelper.ExecuteNonQuery(SqlHelper.ConnectionString, System.Data.CommandType.Text, cmdText, parameters);
+            SqlHelper.ExecuteNonQuery(SqlHelper.ConnectionString, System.Data.CommandType.Text, cmdText, parameters);
             #endregion
         }
 
@@ -448,35 +423,6 @@ namespace CSATRANSSERVICE
             parameters[0] = new SqlParameter("@COMPANYCODE", companyCode);
             mqAddress = SqlHelper.ExecuteScalar(SqlHelper.ConnectionString,System.Data.CommandType.Text,cmdText,parameters);
             return mqAddress;
-        }
-
-        /// <summary>
-        /// Method: XmlFileXsdCheck
-        /// Description: 对xml数据进行XSD校验
-        /// Author: Xiecg
-        /// Date: 2019/06/14
-        /// Parameter: xmlString xml数据
-        /// Parameter: schemaFile XSD文件
-        /// Returns: bool 校验成功返回true，校验失败返回false
-        ///</summary>
-        public static bool XmlFileXsdCheck(string xmlString, string schemaFile)
-        {
-            //报文XSD校验
-            string chekResult = "";
-            if (XsdCheck.IsXsdCheck.Equals("true"))
-            {
-                using (MemoryStream memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(xmlString)))
-                {
-                    if (!XsdCheck.ValidateXML(memoryStream, schemaFile, out chekResult))
-                    {
-                        string inValidedPath = ConfigurationManager.AppSettings["InValidedMessageSavePath"].ToString();
-                        string xsdFileName = FiletoSave(xmlString, inValidedPath, "");
-                        FiletoSave(chekResult, inValidedPath + "\\" + "XsdCheck" + xsdFileName);
-                        return false;
-                    }
-                }
-            }
-            return true;
         }
     }
 }

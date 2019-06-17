@@ -11,12 +11,24 @@ using System.ServiceProcess;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Timers;
 using System.Xml;
 
 namespace CSAReceiveAndSend
 {
     public partial class CSAReceiveAndSendService : ServiceBase
     {
+        /// <summary>
+        /// 日志记录
+        /// </summary>
+        private LogHelper log = new LogHelper();
+
+        /// <summary>
+        /// 线程
+        /// </summary>
+        private Thread threadOperate;
+
+        private static int DelayTime = int.Parse(System.Configuration.ConfigurationManager.AppSettings["DelayTime"]);
         public CSAReceiveAndSendService()
         {
             InitializeComponent();
@@ -24,22 +36,43 @@ namespace CSAReceiveAndSend
 
         protected override void OnStart(string[] args)
         {
-            //todo something
-            Thread thread = new Thread(new ThreadStart(ReceiveAndSend));
-            thread.Start();
+            //延时，防止因其他相关服务如sqlserver等未启动完导致程序报错
+            System.Timers.Timer t = new System.Timers.Timer(DelayTime);
+            t.Elapsed += new System.Timers.ElapsedEventHandler(Timer_Click);
+            t.AutoReset = false;
+            t.Enabled = true;
         }
 
         public void OnStart()
         {
             //todo something
-            Thread thread = new Thread(new ThreadStart(ReceiveAndSend));
-            thread.Start();
+            BeginService();
 
+        }
+
+        private void Timer_Click(Object sender, ElapsedEventArgs e)
+        {
+            BeginService();
         }
 
         protected override void OnStop()
         {
-            base.Stop();
+            
+        }
+
+        public void BeginService()
+        {
+            try
+            {
+                //todo something
+                threadOperate = new Thread(new ThreadStart(ReceiveAndSend));
+                threadOperate.Start();
+                log.WriteEventLog(EventLogEntryType.Information, "CSAReceiveAndSendService start successfully");
+            }
+            catch (Exception e)
+            {
+                log.WriteEventLog(EventLogEntryType.Information, "CSAReceiveAndSendService start failed");
+            }
         }
 
         private void ReceiveAndSend()
@@ -56,12 +89,13 @@ namespace CSAReceiveAndSend
 
                     //MSMQ数据格式
                     string messageType = ConfigurationManager.AppSettings["MessageType"].ToString();
-
-                    ReceiveAndSendTransaction(messageType, receivMq, sendMq);
-                    Thread.CurrentThread.Join(1000);
+                    ReceiveAndSendTransaction(messageType, receivMq, sendMq);                  
+                    Thread.CurrentThread.Join(100);
                 }
                 catch(Exception ex)
                 {
+                    string desc = Thread.CurrentThread.Name+ ex.StackTrace + ex.Message;
+                    log.WriteEventLog(EventLogEntryType.Error, desc);
                     continue;
                 }
             }
@@ -85,7 +119,7 @@ namespace CSAReceiveAndSend
 
             try
             {
-                if (receiveMsmqOperate.ConnectMsmq(receiveMqAddress,false) && sendMsmqOperate.ConnectMsmq(sendMqAddress,false))
+                if (receiveMsmqOperate.ConnectMsmq(receiveMqAddress) && sendMsmqOperate.ConnectMsmq(sendMqAddress))
                 {
                     try
                     {
@@ -111,6 +145,8 @@ namespace CSAReceiveAndSend
                         }
                         catch (Exception ex)
                         {
+                            string desc = Thread.CurrentThread.Name + ex.StackTrace + ex.Message;
+                            log.WriteEventLog(EventLogEntryType.Error, desc);
                             sendMsmqOperate.MqTransaction.Abort();
                             throw ex;
                         }
@@ -119,14 +155,25 @@ namespace CSAReceiveAndSend
                     }
                     catch (Exception ex)
                     {
+                        string desc = Thread.CurrentThread.Name + ex.StackTrace + ex.Message;
+                        log.WriteEventLog(EventLogEntryType.Error, desc);
                         receiveMsmqOperate.MqTransaction.Abort();
                         return false;
+                        throw ex;
                     }
                 }
             }
             catch (Exception ex)
             {
+                string desc = Thread.CurrentThread.Name + ex.StackTrace + ex.Message;
+                log.WriteEventLog(EventLogEntryType.Error, desc);
                 return false;
+                throw ex;
+            }
+            finally
+            {
+                sendMsmqOperate.Queue.Dispose();
+                receiveMsmqOperate.Queue.Dispose();
             }
             return false;
         }

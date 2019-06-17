@@ -47,6 +47,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Commons\LogHelper.cs" />
     <Compile Include="Commons\MsmqOperate.cs" />
     <Compile Include="ProjectInstaller.cs">
       <SubType>Component</SubType>
